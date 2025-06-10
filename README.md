@@ -22,19 +22,20 @@ Sitting in the chair listening to my doctor ask me questions about the glucose t
 
 ┌────────────┐              ┌─────────────┐                       ┌──────────────┐               ┌───────────────┐ 
 
-│Raw Exports │     ───▶     │ETL (Scripts)│           ──▶         │PostgreSQL DB │       ─▶      │Analysis & Viz │ 
+│Raw Exports │     ───▶     │ETL (Scripts)│           ──▶         │PostgreSQL DB │	───▶    │Analysis & Viz │ 
 
 └────────────┘              └─────────────┘                       └──────────────┘               └───────────────┘ 
 
       ▲                           │                                      │                               │ 
 
-      └─ Apple Health .zip         │                                      │                               │ 
+      └─ Apple Health .zip        │                                     │                          	 │ 
 
-      └─ Lose It! .csv             └─ `create_db_schema.py`               └─  notebooks /                 └─ `analysis.py` 
+      └─ Lose It! .csv            └─ `create_db_schema.py`              └─  notebooks /      		 └─ `analysis.py` 
 
       └─ Smartscale .csv          └─ `convert_apple_health.py` 
 
       └─ Glucose .csv             └─ `import_loseit.py`, *etc.* 
+
 
 Each ETL script converts a vendor-specific export into tidy, deduplicated rows, then loads them with ON CONFLICT DO NOTHING so reruns are idempotent. 
 
