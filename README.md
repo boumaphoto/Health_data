@@ -2,7 +2,7 @@
 ## Personal health data project readme 
 
 ## Personal Health Data Analytics 
-###TL;DR This repo contains the Python + PostgreSQL tooling I’m building to turn raw exports from Apple Health, Lose It!, smartscale, and glucosemeter data into actionable insights (and doctor-friendly reports) by leveraging AI assisted data analytics that work to answer 4 questions. 
+### TL;DR This repo contains the Python + PostgreSQL tooling I’m building to turn raw exports from Apple Health, Lose It!, smartscale, and glucosemeter data into actionable insights (and doctor-friendly reports) by leveraging AI assisted data analytics that work to answer 4 questions. 
 
 
 ## What insights can I gain from the current data? 
