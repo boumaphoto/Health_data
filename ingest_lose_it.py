@@ -1,3 +1,21 @@
+# config.py
+from pathlib import Path
+import os, getpass
+from dotenv import load_dotenv
+
+load_dotenv()                          # reads values from .env
+PROJECT_DIR = Path(__file__).parent
+
+DB = dict(
+    host = os.getenv("PGHOST", "localhost"),
+    dbname = os.getenv("PGDB", "health_data"),
+    user = os.getenv("PGUSER", getpass.getuser()),
+    password = os.getenv("PGPASS", ""),
+)
+
+BATCH = int(os.getenv("BATCH", "10000"))   # rows per bulk insert
+TZ    = os.getenv("TZ", "UTC")             # fallback time-zone
+
 # load_loseit_data.py
 import pandas as pd
 import psycopg2
