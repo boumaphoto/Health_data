@@ -32,7 +32,7 @@ from datetime import datetime
 #     Example: r"/home/your_username/Downloads/Health data 2024-01-01 12_00_00.zip"
 # ------------------------------------------------------------
 export_zip = Path(
-    r"A:apple health/Health data.zip"  # <--- UPDATE THIS PATH
+    r"/home/mike//project_glu/repo/data/export.zip"  # <--- UPDATE THIS PATH
 )
 
 # Database Connection Details

@@ -1,0 +1,114 @@
+"""
+apple_health_export.py
+----------------------
+Parses an Apple Health export ZIP and writes each Record type
+into its own sheet in an Excel workbook that sits next to the ZIP.
+
+Requires: pandas, openpyxl
+Install with:  pip install pandas openpyxl
+"""
+
+import sys
+import zipfile
+import xml.etree.ElementTree as ET
+from collections import defaultdict
+from pathlib import Path
+
+try:
+    import pandas as pd
+except ImportError as e:
+    print("❌  Missing package:", e)
+    print("Install with:  pip install pandas openpyxl")
+    input("Press Enter to exit")
+    sys.exit(1)
+
+# ------------------------------------------------------------
+# 1)  EDIT HERE if your path ever changes
+#     Use a raw string (r"...") so back-slashes aren’t escapes.
+# ------------------------------------------------------------
+export_zip = Path(
+    r"A:/ONEDRIVE/mike/apple health/Health data 5 21 25 2025-05-21 12_10_15.zip"
+)
+
+# ------------------------------------------------------------
+# No changes needed below this line
+# ------------------------------------------------------------
+def main(zip_path: Path):
+    if not zip_path.is_file():
+        raise FileNotFoundError(f"Zip file not found: {zip_path}")
+
+    # Create a sibling folder to unzip into (same name, no .zip)
+    extract_folder = zip_path.with_suffix("")
+    extract_folder.mkdir(exist_ok=True)
+
+    # ---------- Unzip -------------------------------------------------------
+    print("➜  Unzipping export …")
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(extract_folder)
+
+    # ---------- Locate export.xml ------------------------------------------
+    # Look anywhere under the extracted folder for a file literally
+    # named 'export.xml' (case-insensitive just in case).
+    try:
+        export_xml = next(
+            p for p in extract_folder.rglob("export.xml")
+            if p.name.lower() == "export.xml"
+        )
+    except StopIteration:
+        raise FileNotFoundError(
+            f"'export.xml' not found anywhere inside {zip_path.name}"
+        )
+
+    # ---------- Parse XML ---------------------------------------------------
+    print(f"➜  Parsing {export_xml.relative_to(extract_folder)} … "
+          "(large files can take a minute)")
+
+    tree = ET.parse(export_xml)
+    root = tree.getroot()
+    records = defaultdict(list)
+
+    for rec in root.findall("Record"):
+        rtype = rec.get("type").split(".")[-1]
+        records[rtype].append(
+            {
+                "startDate": rec.get("startDate"),
+                "endDate":   rec.get("endDate"),
+                "value":     rec.get("value"),
+                "unit":      rec.get("unit"),
+                "source":    rec.get("sourceName"),
+            }
+        )
+
+    # ---------- Write Excel -------------------------------------------------
+    output_excel = zip_path.with_suffix(".xlsx")
+    print(f"➜  Writing Excel workbook → {output_excel.name}")
+
+    # Define the prefix to remove
+    prefix_to_remove = "HKQuantityTypeIdentifier" # Defined outside the loop for efficiency
+
+    with pd.ExcelWriter(output_excel, engine="openpyxl") as writer:
+        for rtype, data in records.items():
+            # --- START OF MODIFICATION ---
+            # Remove the "HKQuantityTypeIdentifier" prefix if it exists
+            sheet_name = rtype
+            if sheet_name.startswith(prefix_to_remove):
+                sheet_name = sheet_name.replace(prefix_to_remove, "", 1)
+
+            # Ensure the sheet name does not exceed 31 characters
+            sheet_name = sheet_name[:31]
+            # --- END OF MODIFICATION ---
+
+            pd.DataFrame(data).to_excel(
+                writer, sheet_name=sheet_name, index=False  # Excel limit = 31 chars
+            )
+
+    print("✅  Done!  Workbook created at:", output_excel)
+
+if __name__ == "__main__":
+    try:
+        main(export_zip)
+    except Exception as err:
+        print("\n⚠️  Error:", err)
+    finally:
+        # Pause so the window stays open if you double-click the script
+        input("\nPress Enter to close.")
