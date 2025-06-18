@@ -8,7 +8,7 @@ __pycache__/
 # Large raw exports
 data_exports/
 *.zip
-
+*.csv
 # Secrets
 .env
 
@@ -18,3 +18,10 @@ venv/
 __pycache__/
 .env
 *.zip
+.idea/
+
+repo/data/gurus.csv
+
+repo/data/apple.zip
+
+repo/data/loseit.zip
