@@ -6,7 +6,7 @@ param(
 )
 
 Write-Host "🟢 Starting PostgreSQL..."
-Start-Service postgresql-x64-15   # Replace with your actual PostgreSQL service name
+Start-Service postgresql-x64-17   # Replace with your actual PostgreSQL service name
 
 Write-Host "🐍 Activating Python virtual environment..."
 $env:VIRTUAL_ENV = "$PSScriptRoot\venv"
