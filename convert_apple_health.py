@@ -33,8 +33,15 @@ DB_CONFIG = {
 
 # Configure your Apple Health export path here
 # Use forward slashes or raw strings to avoid path issues on Windows
-EXPORT_ZIP_PATH = Path(os.getenv("APPLE_HEALTH_EXPORT", 
-    r"C:\Users\YourUsername\Downloads\export.zip"))
+export_path_str = os.getenv("APPLE_HEALTH_ZIP_PATH")
+if not export_path_str:
+    print("❌ APPLE_HEALTH_ZIP_PATH is not set in your .env file.")
+    sys.exit(1)
+
+EXPORT_ZIP_PATH = Path(export_path_str)
+
+
+
 
 # Batch size for database inserts - helps with memory management
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "1000"))

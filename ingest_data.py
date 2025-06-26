@@ -150,7 +150,8 @@ Examples:
         file_path = args.file if args.loseit and not (args.apple or args.scale or args.glucose) else None
         try:
             print("🍽️  Starting LoseIt ingestion...")
-            ath=file_path, start_date=args.start, end_date=args.end)ingest_loseit(ZIP_path=file_path, start_date=args.start, end_date=args.end)
+            ingest_loseit(ZIP_path=file_path, start_date=args.start, end_date=args.end)
+
 
             results['loseit'] = True
         except Exception as e:
