@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime
 import numpy as np
+from scale_ingest import ingest_smart_scale
 
 # Load environment variables
 load_dotenv()
