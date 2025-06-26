@@ -1,36 +1,35 @@
-# start_health.ps1
+# start_health.ps1 - Run health data workflow in PowerShell
+Write-Host "=== Starting Personal Health Data Workflow ===`n"
 
-param(
-    [ValidateSet("download", "normalize", "analyze", "insight")]
-    [string]$phase = "download"
-)
+# Step 1: Ensure PostgreSQL is running (manual on most dev setups)
+Write-Host "[1/4] (Manual) Ensure PostgreSQL is running." -ForegroundColor Yellow
 
-Write-Host "🟢 Starting PostgreSQL..."
-Start-Service postgresql-x64-17   # Replace with your actual PostgreSQL service name
+# Step 2: Activate Python virtual environment
+$venvPath = Join-Path $PSScriptRoot "venv\Scripts\Activate.ps1"
 
-Write-Host "🐍 Activating Python virtual environment..."
-$env:VIRTUAL_ENV = "$PSScriptRoot\venv"
-. "$env:VIRTUAL_ENV\Scripts\Activate.ps1"
-
-switch ($phase) {
-    "download" {
-        Write-Host "📥 Phase: Download new data"
-        Write-Host "   Reminder: Export Apple Health and Lose It data to /data folder"
-        # Optionally: run a download or unzip helper
+if (Test-Path $venvPath) {
+    Write-Host "[2/4] Activating Python virtual environment..." -ForegroundColor Green
+    . $venvPath
+}
+else {
+    Write-Host "[2/4] Virtual environment not found. Creating one..." -ForegroundColor Yellow
+    python -m venv venv
+    if (Test-Path $venvPath) {
+        . $venvPath
     }
-    "normalize" {
-        Write-Host "🧼 Phase: Normalize data (ETL)"
-        Write-Host "   Ready to run convert_apple_health.py, ingest_lose_it.py, etc."
-    }
-    "analyze" {
-        Write-Host "📊 Phase: Analyze data"
-        Write-Host "   You can now run analyze.py or open a Jupyter Notebook"
-    }
-    "insight" {
-        Write-Host "💡 Phase: Develop insights"
-        Write-Host "   Run export_for_doctor.py or create charts and summaries"
+    else {
+        Write-Error "❌ Failed to create virtual environment. Exiting."
+        exit 1
     }
 }
 
-# Optional: launch a PowerShell session so venv remains active
-powershell
+# Step 3: Install required Python packages
+Write-Host "[3/4] Installing Python packages from requirements.txt..." -ForegroundColor Green
+pip install -r requirements.txt
+
+# Step 4: Run the ingestion pipeline
+Write-Host "[4/4] Running data ingestion script..." -ForegroundColor Green
+python .\ingest_data.py --all
+
+# Done
+Write-Host "`n🎉 Done! Data ingestion completed." -ForegroundColor Cyan

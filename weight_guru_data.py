@@ -1,62 +1,81 @@
-# config.py
+# improved_weight_guru_data.py
+"""
+Enhanced Weight Guru Data Import Script
+
+This script imports Weight Guru scale data into PostgreSQL with proper error handling,
+data validation, and consistency with the overall health data system.
+"""
+
+import os
+import sys
+import getpass
+import pandas as pd
+import psycopg2
 from pathlib import Path
-import os, getpass
 from dotenv import load_dotenv
+from datetime import datetime
+import numpy as np
 
-load_dotenv()                          # reads values from .env
-PROJECT_DIR = Path(__file__).parent
+# Load environment variables
+load_dotenv()
 
-DB = dict(
-    host = os.getenv("PGHOST", "localhost"),
-    dbname = os.getenv("PGDB", "health_data"),
-    user = os.getenv("PGUSER", getpass.getuser()),
-    password = os.getenv("PGPASS", ""),
-)
-
-BATCH = int(os.getenv("BATCH", "10000"))   # rows per bulk insert
-TZ    = os.getenv("TZ", "UTC")             # fallback time-zone
-
-import pandas as pd, psycopg2, sys, pathlib
-DB = dict(host="localhost", dbname="health_data",
-          user="your_user", password="your_pwd")
-
-csv_path = pathlib.Path("/path/to/weight_gurus_export.csv")   # <-- edit
-
-COL_MAP = {                # tweak to match actual headers
-    "Date":        "measurement_date",
-    "Weight":      "weight_value",
-    "Unit":        "weight_unit",
-    "Body Fat %":  "body_fat_percentage",
-    "BMI":         "bmi_value",
-    "Muscle lb":   "muscle_mass",
+# Centralized database configuration - consistent with other scripts
+DB_CONFIG = {
+    'host': os.getenv("PGHOST", "localhost"),
+    'dbname': os.getenv("PGDB", "health_data"),
+    'user': os.getenv("PGUSER", getpass.getuser()),
+    'password': os.getenv("PGPASS", ""),
+    'port': os.getenv("PGPORT", "5432")
 }
 
-def load_csv(p):
-    df = pd.read_csv(p)
-    df = df.rename(columns=COL_MAP)
-    df["measurement_date"] = pd.to_datetime(df["measurement_date"],
-                                            errors="coerce", utc=True)
-    num_cols = ["weight_value","body_fat_percentage","bmi_value","muscle_mass"]
-    df[num_cols] = df[num_cols].apply(pd.to_numeric, errors="coerce")
-    df = df.dropna(subset=["measurement_date","weight_value"])
-    df["source"] = "WeightGurus"
-    return df[["measurement_date","weight_value","weight_unit",
-               "body_fat_percentage","bmi_value","muscle_mass","source"]]
+# Configuration for Weight Guru data import
+WEIGHT_GURU_CSV_PATH = Path(os.getenv("WEIGHT_GURU_CSV", 
+    r"C:\Users\YourUsername\Downloads\weight_gurus_export.csv"))
 
-def main():
-    df = load_csv(csv_path)
-    if df.empty:
-        print("Nothing to insert.")
-        return
-    with psycopg2.connect(**DB) as conn, conn.cursor() as cur:
-        cur.executemany("""
-            INSERT INTO body_measurements
-              (measurement_date,weight_value,weight_unit,
-               body_fat_percentage,bmi_value,muscle_mass,source)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
-            ON CONFLICT (measurement_date,source) DO NOTHING;
-        """, df.astype(object).where(pd.notna(df), None).values.tolist())
-        print(f"Inserted {cur.rowcount} rows.")
+# Column mapping - handles variations in Weight Guru export formats
+COLUMN_MAPPINGS = {
+    # Common variations of column names from different Weight Guru exports
+    "Date": "measurement_date",
+    "Timestamp": "measurement_date", 
+    "DateTime": "measurement_date",
+    "Weight": "weight_value",
+    "Weight (lb)": "weight_value",
+    "Weight (kg)": "weight_value",
+    "Unit": "weight_unit",
+    "Weight Unit": "weight_unit",
+    "Body Fat %": "body_fat_percentage",
+    "Body Fat": "body_fat_percentage",
+    "BMI": "bmi_value",
+    "Muscle lb": "muscle_mass",
+    "Muscle Mass": "muscle_mass",
+    "Muscle (lb)": "muscle_mass",
+    "Muscle (kg)": "muscle_mass",
+    "Bone Mass": "bone_mass",
+    "Water %": "water_percentage",
+    "Water Percentage": "water_percentage", 
+    "Metabolic Age": "metabolic_age",
+    "Visceral Fat": "visceral_fat_rating",
+    "User": "device_user",
+    "Device ID": "device_id"
+}
 
-if __name__ == "__main__":
-    main()
+def get_db_connection():
+    """
+    Creates a database connection with proper error handling.
+    """
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
+    except psycopg2.OperationalError as e:
+        print(f"❌ Database connection failed: {e}")
+        print("💡 Check your .env file and ensure PostgreSQL is running")
+        return None
+    except Exception as e:
+        print(f"❌ Unexpected database error: {e}")
+        return None
+
+def detect_csv_encoding(file_path):
+    """
+    Detects the encoding of a CSV file to handle international characters.
+    Weight Guru
+    """
