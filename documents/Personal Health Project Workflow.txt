@@ -1,0 +1,223 @@
+Personal Health Data Project: Step-by-Step Workflow
+This document outlines how to maintain and analyze your PostgreSQL health database using Apple Health and LoseIt! data exports. All commands are for a Linux Mint environment. Save this in your repo as docs/workflow.md.
+
+?? 1. File Structure Plan
+Organize your files like this:
+health_analytics/
+??? .env                         # Your secrets file
+??? requirements.txt             # Python dependencies
+??? venv/                        # Virtual environment (ignored by git)
+??? convert_apple_health.py      # Apple Health ingestion script
+??? import_lose_it.py            # LoseIt ingestion script
+??? ingest_scale_data.py         # Smart scale ingestion (if used)
+??? ingest_glucose_data.py       # Glucose ingestion (if used)
+??? create_db_schema.py          # Schema setup script
+??? analyze.py                   # Data analysis and visualization
+??? export_for_doctor.py         # Excel report generator
+??? /app_data/                   # ZIP and CSV data files
+??? /output/                     # Generated charts and Excel files
+??? docs/
+    ??? workflow.md              # This instruction file
+ 
+
+?? 2. First-Time Setup
+2.1 Open Terminal
+Click your Linux Mint menu, search for Terminal, and open it.
+2.2 Navigate to Your Project Folder
+cd ~/home/mike/health_analytics/repo/health_data
+ 
+2.3 Create Virtual Environment
+python3 -m venv venv
+ 
+2.4 Activate the Virtual Environment
+source venv/bin/activate
+ 
+You’ll know it worked if your prompt starts with (venv).
+2.5 Install Required Libraries
+pip install -r requirements.txt
+ 
+If requirements.txt doesn’t exist yet:
+pip install pandas psycopg2-binary python-dotenv openpyxl
+pip freeze > requirements.txt
+ 
+
+?? 3. Set Up Your Secrets File (.env)
+3.1 Create the .env file
+nano .env
+ 
+3.2 Paste and customize:
+DB_HOST=localhost
+DB_NAME=health_data
+DB_USER=your_username
+DB_PASSWORD=your_secure_password
+
+APPLE_HEALTH_ZIP_PATH=/home/mike/health_analytics/app_data/HealthExport.zip
+LOSEIT_CSV_PATH=/home/YOURNAME/Downloads/loseit_export.csv
+ 
+?? Replace your_username, your_secure_password, and the file paths with your actual values.
+To find the correct path, use pwd in the Terminal from the folder where the export file is located, then append the filename.
+Press CTRL + O to save, ENTER, then CTRL + X to exit nano.
+
+?? 4. Routine Use — Update the Database with New Data
+4.1 Download New Data
+* Apple Health: Export via iPhone, send to your laptop, and move to your app_data folder.
+* LoseIt!: Export your food log CSV and move it to your chosen directory.
+Update .env if file names or locations changed.
+4.2 Open Terminal and Activate Environment
+Quick Start via PowerShell Script (Windows Only)
+If you're working on a Windows system and prefer a one-click setup, you can use the start_health.ps1 script to automate environment activation and data ingestion.
+?? Prerequisites
+* Ensure your .env file is correctly configured with database and file paths.
+* Scripts like convert_apple_health.py and ingest_lose_it.py should exist in the repo.
+* Windows PowerShell must be available (right-click the .ps1 file > Run with PowerShell).
+?? How to Use
+1. Open PowerShell as Administrator (if needed to bypass execution policy).
+2. Navigate to the script's folder:
+powershell
+CopyEdit
+cd 'C:\path\to\your\project'
+3. Run the script:
+powershell
+CopyEdit
+.\start_health.ps1
+This script will:
+* Load the virtual environment
+* Run Apple Health and LoseIt ingestion scripts
+* Provide a success/failure summary
+ 
+4.3 Run Import Scripts
+python convert_apple_health.py     # Apple Health ZIP
+python import_lose_it.py           # LoseIt CSV
+ 
+4.4 Optional: Run Additional Scripts
+python ingest_scale_data.py        # Smart scale
+python ingest_glucose_data.py      # Glucose meter
+ 
+
+?? 5. Data Normalization and Date-Time Continuity
+?? Primary Key Philosophy
+* Use time columns like start_date or reading_time as natural unique keys.
+* Define unique constraints like (type, start_date, end_date, value).
+?? Normalize Date-Time Across Scripts
+Ensure every ingestion script:
+1. Converts timestamps to UTC:
+pd.to_datetime(value).dt.tz_convert('UTC')
+ 
+2. Stores as TIMESTAMP WITH TIME ZONE in PostgreSQL.
+3. Uses consistent column names (start_date, log_date, etc.).
+?? Validate Dates
+if pd.isna(start_date) or pd.isna(end_date):
+    continue  # Skip
+ 
+?? Create Unified Time Key (Optional)
+* Use .dt.floor('T') or DATE_TRUNC() to align entries for joins.
+* Consider adding date_key to simplify merging across tables.
+
+?? 6. Analytics and Chart Generation
+Once the data is ingested and normalized, follow these steps to generate visual outputs and derive insights:
+6.1 Load Data into Pandas
+Query PostgreSQL using Python:
+import pandas as pd
+from sqlalchemy import create_engine
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+db_url = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+engine = create_engine(db_url)
+df = pd.read_sql("SELECT start_date, value FROM health_records WHERE type = 'HKQuantityTypeIdentifierStepCount';", engine)
+ 
+6.2 Clean and Format
+df['start_date'] = pd.to_datetime(df['start_date'])
+df = df.sort_values('start_date')
+df.set_index('start_date', inplace=True)
+ 
+6.3 Resample and Aggregate
+daily = df.resample('D').sum()
+ 
+6.4 Remove Outliers
+daily = daily[daily['value'] < 500]  # adjust threshold as needed
+ 
+6.5 Plot Chart
+import matplotlib.pyplot as plt
+plt.figure(figsize=(12, 6))
+daily.plot()
+plt.title("Daily Step Count")
+plt.xlabel("Date")
+plt.ylabel("Steps")
+plt.tight_layout()
+plt.savefig("output/daily_steps.png")
+plt.show()
+ 
+6.6 Use with ChatGPT
+Upload or paste the chart image and ask ChatGPT to:
+* Identify trends
+* Detect patterns or outliers
+* Suggest insights or hypotheses (e.g., “Why are weekends higher?”)
+Repeat this pattern for:
+* Blood glucose trends
+* Caloric intake vs. weight change
+* Sleep duration vs. activity level
+Use analyze.py and export_for_doctor.py for prebuilt automated output if configured.
+
+?? 7. Turning Insights into Action
+Once you've identified trends, take these next steps to create actionable health plans:
+7.1 Define Hypotheses
+* Use ChatGPT to help generate questions: "What might cause my glucose to spike after dinner?"
+* Compare similar patterns across weeks or after certain meals or exercises.
+7.2 Identify Data Gaps
+* Are there missing glucose readings post-meal?
+* Are workouts not recorded consistently?
+* Consider using reminders or setting up automated logging.
+7.3 Design Experiments
+* Try 1–2 weeks with specific food targets (e.g., <30g carbs per meal).
+* Add walking after lunch and compare glucose response.
+* Track sleep hours and correlate with resting heart rate or glucose.
+7.4 Implement Focused Data Collection
+* Weigh food more accurately.
+* Measure glucose before and 1–2 hours after meals.
+* Record stress and energy levels.
+7.5 Build Habit Change Plans
+* Based on trends, build a food plan to reduce sugar levels.
+* Choose exercises that show the best glucose improvements.
+* Create visual summaries of success (weekly charts).
+Use these summaries for personal tracking or for discussion with your healthcare provider.
+
+?? 8. Appendix: Diagnostics & Verification
+?? Basic Checks
+SELECT COUNT(*) FROM health_records;
+SELECT COUNT(*) FROM food_log;
+SELECT COUNT(*) FROM body_measurements;
+ 
+? Script Verification Plan
+* Run script ? check DBeaver ? confirm recent rows.
+* Check source_name, start_date, and table row count.
+?? If Something Breaks
+* Recheck .env file
+* Look at script error logs
+* Use print() for debugging
+?? Monthly Regression Test
+source venv/bin/activate
+python convert_apple_health.py
+python import_lose_it.py
+ 
+Then validate in DBeaver that new records were inserted.
+
+?? 9. Shutdown & Maintenance
+Deactivate Environment
+deactivate
+ 
+Reset Database (Danger: Deletes All)
+python create_db_schema.py
+ 
+Manually Connect to DB
+psql -U your_username -d health_data
+ 
+Fresh Setup on New Machine
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+ 
+
+Tape this to your wall or save it in docs/workflow.md. If anything breaks, verify your .env, file paths, or virtual environment.
+

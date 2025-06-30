@@ -1,6 +1,6 @@
 # check_table_counts.py
-    # Python script you can run to connect to your database and check how much data is in each table.
-    
+# Python script you can run to connect to your database and check how much data is in each table.
+
 import os
 import psycopg2
 from dotenv import load_dotenv
@@ -22,7 +22,7 @@ TABLES = [
     "workouts",
     "food_log",
     "body_measurements",
-    "blood_glucose_meter"
+    "blood_glucose"
 ]
 
 def get_table_counts():
